@@ -3,11 +3,19 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
 
+interface RouteContext {
+  params: Promise<{
+    id: string;
+  }>;
+}
+
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: RouteContext
 ) {
   try {
+    const { id } = await context.params;
+
     const session = await getServerSession(authOptions);
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -15,7 +23,7 @@ export async function GET(
 
     const invoice = await db.invoice.findFirst({
       where: {
-        id: params.id,
+        id,
         tenantId: session.user.id,
       },
       include: {
@@ -41,9 +49,11 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: RouteContext
 ) {
   try {
+    const { id } = await context.params;
+
     const session = await getServerSession(authOptions);
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -53,7 +63,7 @@ export async function PATCH(
 
     const invoice = await db.invoice.findFirst({
       where: {
-        id: params.id,
+        id,
         tenantId: session.user.id,
       },
     });
@@ -63,7 +73,7 @@ export async function PATCH(
     }
 
     const updated = await db.invoice.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         status: body.status,
       },
@@ -81,9 +91,11 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: RouteContext
 ) {
   try {
+    const { id } = await context.params;
+
     const session = await getServerSession(authOptions);
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -91,7 +103,7 @@ export async function DELETE(
 
     const invoice = await db.invoice.findFirst({
       where: {
-        id: params.id,
+        id,
         tenantId: session.user.id,
       },
     });
@@ -101,7 +113,7 @@ export async function DELETE(
     }
 
     await db.invoice.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
     return NextResponse.json({ success: true });
