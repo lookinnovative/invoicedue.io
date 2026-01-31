@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { Prisma, InvoiceStatus } from '@prisma/client';
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,14 +12,18 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const status = searchParams.get('status');
+    const statusParam = searchParams.get('status');
 
-    const where: { tenantId: string; status?: string } = {
+    const where: Prisma.InvoiceWhereInput = {
       tenantId: session.user.id,
     };
 
-    if (status && status !== 'all') {
-      where.status = status as 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
+    if (
+      statusParam &&
+      statusParam !== 'all' &&
+      Object.values(InvoiceStatus).includes(statusParam as InvoiceStatus)
+    ) {
+      where.status = statusParam as InvoiceStatus;
     }
 
     const invoices = await db.invoice.findMany({

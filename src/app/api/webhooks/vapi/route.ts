@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { recordUsage } from '@/lib/usage';
 import { mapVapiOutcome, verifyVapiWebhook } from '@/lib/vapi';
+import { InvoiceStatus, CallOutcome } from '@prisma/client';
 
 interface VapiWebhookPayload {
   type: string;
@@ -40,7 +41,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ received: true });
       }
 
-      const outcome = mapVapiOutcome(call.status);
+      const outcome = mapVapiOutcome(call.status) as CallOutcome;
       const duration = call.duration || 0;
 
       // Update call log
@@ -54,7 +55,7 @@ export async function POST(request: NextRequest) {
           data: {
             endedAt: new Date(),
             durationSeconds: duration,
-            outcome: outcome as 'ANSWERED' | 'VOICEMAIL' | 'NO_ANSWER' | 'BUSY' | 'WRONG_NUMBER' | 'DISCONNECTED',
+            outcome,
           },
         });
 
@@ -74,15 +75,15 @@ export async function POST(request: NextRequest) {
             where: { tenantId: metadata.tenantId },
           });
 
-          let newStatus = invoice.status;
+          let newStatus: InvoiceStatus = invoice.status;
           let nextCallDate: Date | null = null;
 
-          if (outcome === 'ANSWERED') {
-            newStatus = 'COMPLETED';
+          if (outcome === CallOutcome.ANSWERED) {
+            newStatus = InvoiceStatus.COMPLETED;
           } else if (newAttempts >= (policy?.maxAttempts || 5)) {
-            newStatus = 'FAILED';
+            newStatus = InvoiceStatus.FAILED;
           } else {
-            newStatus = 'IN_PROGRESS';
+            newStatus = InvoiceStatus.IN_PROGRESS;
             // Calculate next call date based on cadence
             if (policy?.cadenceDays) {
               const today = new Date();
@@ -102,7 +103,7 @@ export async function POST(request: NextRequest) {
             data: {
               callAttempts: newAttempts,
               lastCallOutcome: outcome,
-              status: newStatus as 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED',
+              status: newStatus,
               nextCallDate,
             },
           });

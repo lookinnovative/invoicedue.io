@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { checkUsageBeforeCall, recordUsage } from '@/lib/usage';
 import { initiateCall, getCallStatus, mapVapiOutcome } from '@/lib/vapi';
+import { InvoiceStatus, CallOutcome } from '@prisma/client';
 
 // Verify cron secret for Vercel
 function verifyCronSecret(request: NextRequest): boolean {
@@ -52,7 +53,7 @@ export async function GET(request: NextRequest) {
       const invoices = await db.invoice.findMany({
         where: {
           tenantId: policy.tenantId,
-          status: { in: ['PENDING', 'IN_PROGRESS'] },
+          status: { in: [InvoiceStatus.PENDING, InvoiceStatus.IN_PROGRESS] },
           callAttempts: { lt: policy.maxAttempts },
           OR: [
             { nextCallDate: null },
@@ -107,7 +108,7 @@ export async function GET(request: NextRequest) {
           await db.invoice.update({
             where: { id: invoice.id },
             data: {
-              status: 'IN_PROGRESS',
+              status: InvoiceStatus.IN_PROGRESS,
             },
           });
 
@@ -122,7 +123,7 @@ export async function GET(request: NextRequest) {
     let callsReconciled = 0;
     const pendingCalls = await db.callLog.findMany({
       where: {
-        outcome: 'PENDING',
+        outcome: CallOutcome.PENDING,
         startedAt: {
           lt: new Date(now.getTime() - 5 * 60 * 1000), // Started more than 5 mins ago
         },
@@ -137,14 +138,14 @@ export async function GET(request: NextRequest) {
       try {
         const status = await getCallStatus(call.vapiCallId);
         if (status) {
-          const outcome = mapVapiOutcome(status.status);
+          const outcome = mapVapiOutcome(status.status) as CallOutcome;
           
           await db.callLog.update({
             where: { id: call.id },
             data: {
               endedAt: new Date(),
               durationSeconds: status.duration,
-              outcome: outcome as 'ANSWERED' | 'VOICEMAIL' | 'NO_ANSWER' | 'BUSY' | 'WRONG_NUMBER' | 'DISCONNECTED',
+              outcome,
             },
           });
 
@@ -164,12 +165,12 @@ export async function GET(request: NextRequest) {
             });
             
             const newAttempts = invoice.callAttempts + 1;
-            let newStatus = invoice.status;
+            let newStatus: InvoiceStatus = invoice.status;
             
-            if (outcome === 'ANSWERED') {
-              newStatus = 'COMPLETED';
+            if (outcome === CallOutcome.ANSWERED) {
+              newStatus = InvoiceStatus.COMPLETED;
             } else if (newAttempts >= (policy?.maxAttempts || 5)) {
-              newStatus = 'FAILED';
+              newStatus = InvoiceStatus.FAILED;
             }
 
             await db.invoice.update({
@@ -177,7 +178,7 @@ export async function GET(request: NextRequest) {
               data: {
                 callAttempts: newAttempts,
                 lastCallOutcome: outcome,
-                status: newStatus as 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED',
+                status: newStatus,
               },
             });
           }

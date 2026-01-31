@@ -133,8 +133,8 @@ export function verifyVapiWebhook(
   );
 }
 
-export function mapVapiOutcome(vapiStatus: string): string {
-  const outcomeMap: Record<string, string> = {
+export function mapVapiOutcome(vapiStatus: string): 'ANSWERED' | 'VOICEMAIL' | 'NO_ANSWER' | 'BUSY' | 'WRONG_NUMBER' | 'DISCONNECTED' {
+  const outcomeMap: Record<string, 'ANSWERED' | 'VOICEMAIL' | 'NO_ANSWER' | 'BUSY' | 'WRONG_NUMBER' | 'DISCONNECTED'> = {
     'completed': 'ANSWERED',
     'voicemail': 'VOICEMAIL',
     'no-answer': 'NO_ANSWER',
