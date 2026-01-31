@@ -1,5 +1,11 @@
 # Stabilization Notes
 
+## v0.1.0-stable – Production Baseline
+- First successful Vercel production deploy
+- Prisma generation stabilized for cached builds
+- Next.js 16 + ESLint 9 compatibility confirmed
+
+
 ## 1. Stabilization Summary
 
 - Project underwent a post-MVP stabilization pass to unblock builds and deployment

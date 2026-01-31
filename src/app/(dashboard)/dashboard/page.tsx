@@ -1,38 +1,95 @@
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import { db } from '@/lib/db';
-import { getUsageStatus } from '@/lib/usage';
+'use client';
+
+import { useState, useEffect } from 'react';
 import { Header } from '@/components/layout/header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { FileText, Phone, AlertTriangle, AlertCircle, XCircle } from 'lucide-react';
+import { FileText, Phone, AlertTriangle, AlertCircle, XCircle, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { formatDateTime } from '@/lib/utils';
 
-export default async function DashboardPage() {
-  const session = await getServerSession(authOptions);
-  const tenantId = session!.user.id;
+interface CallLog {
+  id: string;
+  outcome: string;
+  startedAt: string;
+  invoice: {
+    customerName: string;
+  };
+}
 
-  const [invoiceCount, callCount, usage, recentCalls, policy] = await Promise.all([
-    db.invoice.count({ where: { tenantId } }),
-    db.callLog.count({ where: { tenantId } }),
-    getUsageStatus(tenantId),
-    db.callLog.findMany({
-      where: { tenantId },
-      orderBy: { createdAt: 'desc' },
-      take: 10,
-      include: { invoice: { select: { customerName: true } } },
-    }),
-    db.policy.findUnique({ where: { tenantId } }),
-  ]);
+interface Usage {
+  minutesUsed: number;
+  minutesAllocated: number;
+  percentUsed: number;
+  warningLevel: 'none' | 'soft' | 'critical' | 'hard';
+}
+
+interface DashboardData {
+  invoiceCount: number;
+  callCount: number;
+  usage: Usage;
+  recentCalls: CallLog[];
+  hasPaymentLink: boolean;
+}
+
+export default function DashboardPage() {
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchDashboardData() {
+      try {
+        const [invoicesRes, callsRes, usageRes] = await Promise.all([
+          fetch('/api/invoices'),
+          fetch('/api/calls'),
+          fetch('/api/usage'),
+        ]);
+
+        if (!invoicesRes.ok || !callsRes.ok || !usageRes.ok) {
+          // Auth failed or other error - will be handled by layout redirect
+          return;
+        }
+
+        const [invoices, calls, usage] = await Promise.all([
+          invoicesRes.json(),
+          callsRes.json(),
+          usageRes.json(),
+        ]);
+
+        // Fetch policy to check payment link
+        const policyRes = await fetch('/api/policy');
+        const policy = policyRes.ok ? await policyRes.json() : null;
+
+        setData({
+          invoiceCount: Array.isArray(invoices) ? invoices.length : 0,
+          callCount: Array.isArray(calls) ? calls.length : 0,
+          usage: {
+            minutesUsed: usage.minutesUsed || 0,
+            minutesAllocated: usage.minutesAllocated || 100,
+            percentUsed: usage.percentUsed || 0,
+            warningLevel: usage.warningLevel || 'none',
+          },
+          recentCalls: Array.isArray(calls) ? calls.slice(0, 10) : [],
+          hasPaymentLink: !!policy?.paymentLink,
+        });
+      } catch (error) {
+        console.error('Failed to fetch dashboard data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchDashboardData();
+  }, []);
 
   const getProgressVariant = () => {
-    if (usage.warningLevel === 'hard') return 'destructive';
-    if (usage.warningLevel === 'critical') return 'critical';
-    if (usage.warningLevel === 'soft') return 'warning';
+    if (!data) return 'default';
+    if (data.usage.warningLevel === 'hard') return 'destructive';
+    if (data.usage.warningLevel === 'critical') return 'critical';
+    if (data.usage.warningLevel === 'soft') return 'warning';
     return 'default';
   };
 
@@ -49,7 +106,29 @@ export default async function DashboardPage() {
     return variants[outcome] || 'pending';
   };
 
-  const needsSetup = !policy?.paymentLink || invoiceCount === 0;
+  if (isLoading) {
+    return (
+      <div className="flex flex-col h-full">
+        <Header title="Dashboard" />
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div className="flex flex-col h-full">
+        <Header title="Dashboard" />
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-muted-foreground">Failed to load dashboard data.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const needsSetup = !data.hasPaymentLink || data.invoiceCount === 0;
 
   return (
     <div className="flex flex-col h-full">
@@ -74,30 +153,30 @@ export default async function DashboardPage() {
           </Card>
         )}
 
-        {usage.warningLevel !== 'none' && (
+        {data.usage.warningLevel !== 'none' && (
           <Alert
-            variant={usage.warningLevel === 'hard' ? 'destructive' : 'warning'}
+            variant={data.usage.warningLevel === 'hard' ? 'destructive' : 'warning'}
           >
-            {usage.warningLevel === 'hard' ? (
+            {data.usage.warningLevel === 'hard' ? (
               <XCircle className="h-4 w-4" />
-            ) : usage.warningLevel === 'critical' ? (
+            ) : data.usage.warningLevel === 'critical' ? (
               <AlertCircle className="h-4 w-4" />
             ) : (
               <AlertTriangle className="h-4 w-4" />
             )}
             <AlertTitle>
-              {usage.warningLevel === 'hard'
+              {data.usage.warningLevel === 'hard'
                 ? 'Limit Reached'
-                : usage.warningLevel === 'critical'
+                : data.usage.warningLevel === 'critical'
                 ? 'Approaching Limit'
                 : 'Usage Warning'}
             </AlertTitle>
             <AlertDescription>
-              {usage.warningLevel === 'hard'
+              {data.usage.warningLevel === 'hard'
                 ? 'You have used all your minutes. Follow-up calls are paused. Contact support to increase your allocation.'
-                : usage.warningLevel === 'critical'
-                ? `You have used ${Math.round(usage.percentUsed)}% of your minutes. Follow-up calls will pause when you reach 100%.`
-                : `You have used ${Math.round(usage.percentUsed)}% of your minutes this period.`}
+                : data.usage.warningLevel === 'critical'
+                ? `You have used ${Math.round(data.usage.percentUsed)}% of your minutes. Follow-up calls will pause when you reach 100%.`
+                : `You have used ${Math.round(data.usage.percentUsed)}% of your minutes this period.`}
             </AlertDescription>
           </Alert>
         )}
@@ -109,7 +188,7 @@ export default async function DashboardPage() {
               <FileText className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">{invoiceCount}</div>
+              <div className="text-3xl font-bold">{data.invoiceCount}</div>
               <Link href="/invoices" className="text-sm text-primary hover:underline">
                 View Invoices
               </Link>
@@ -122,7 +201,7 @@ export default async function DashboardPage() {
               <Phone className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">{callCount}</div>
+              <div className="text-3xl font-bold">{data.callCount}</div>
               <Link href="/history" className="text-sm text-primary hover:underline">
                 View History
               </Link>
@@ -135,12 +214,12 @@ export default async function DashboardPage() {
             <CardTitle className="text-sm font-medium">Usage This Period</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            <Progress value={usage.percentUsed} variant={getProgressVariant()} />
+            <Progress value={data.usage.percentUsed} variant={getProgressVariant()} />
             <div className="flex justify-between text-sm text-muted-foreground">
               <span>
-                {usage.minutesUsed.toFixed(1)} / {usage.minutesAllocated} minutes
+                {data.usage.minutesUsed.toFixed(1)} / {data.usage.minutesAllocated} minutes
               </span>
-              <span>{Math.round(usage.percentUsed)}% used</span>
+              <span>{Math.round(data.usage.percentUsed)}% used</span>
             </div>
           </CardContent>
         </Card>
@@ -150,11 +229,11 @@ export default async function DashboardPage() {
             <CardTitle className="text-sm font-medium">Recent Activity</CardTitle>
           </CardHeader>
           <CardContent>
-            {recentCalls.length === 0 ? (
+            {data.recentCalls.length === 0 ? (
               <p className="text-sm text-muted-foreground">No calls have been made yet.</p>
             ) : (
               <div className="space-y-3">
-                {recentCalls.map((call) => (
+                {data.recentCalls.map((call) => (
                   <div
                     key={call.id}
                     className="flex items-center justify-between py-2 border-b last:border-0"
