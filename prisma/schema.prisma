@@ -1,0 +1,126 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  companyName  String   @map("company_name")
+  timezone     String   @default("America/New_York")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  invoices     Invoice[]
+  policy       Policy?
+  callLogs     CallLog[]
+  usageRecords UsageRecord[]
+
+  @@map("tenants")
+}
+
+model Invoice {
+  id              String        @id @default(uuid())
+  tenantId        String        @map("tenant_id")
+  customerName    String        @map("customer_name")
+  phoneNumber     String        @map("phone_number")
+  amount          Decimal       @db.Decimal(10, 2)
+  dueDate         DateTime      @map("due_date") @db.Date
+  invoiceNumber   String?       @map("invoice_number")
+  email           String?
+  notes           String?
+  status          InvoiceStatus @default(PENDING)
+  lastCallOutcome String?       @map("last_call_outcome")
+  callAttempts    Int           @default(0) @map("call_attempts")
+  nextCallDate    DateTime?     @map("next_call_date") @db.Date
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  callLogs CallLog[]
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([tenantId, nextCallDate])
+  @@map("invoices")
+}
+
+enum InvoiceStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+}
+
+model Policy {
+  id              String   @id @default(uuid())
+  tenantId        String   @unique @map("tenant_id")
+  cadenceDays     Int[]    @default([3, 7, 14, 30]) @map("cadence_days")
+  maxAttempts     Int      @default(5) @map("max_attempts")
+  callWindowStart String   @default("09:00") @map("call_window_start")
+  callWindowEnd   String   @default("18:00") @map("call_window_end")
+  callDays        String[] @default(["mon", "tue", "wed", "thu", "fri"]) @map("call_days")
+  greetingScript  String   @default("Hello, this is a call from {{company_name}} regarding invoice {{invoice_number}} for {{amount_due}}. This invoice is {{days_overdue}} days overdue. We will send you a payment link via text message.") @map("greeting_script")
+  voicemailScript String   @default("Hello {{customer_name}}, this is {{company_name}} calling about invoice {{invoice_number}} for {{amount_due}}. Please check your text messages for a payment link. Thank you.") @map("voicemail_script")
+  paymentLink     String?  @map("payment_link")
+  smsEnabled      Boolean  @default(true) @map("sms_enabled")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("policies")
+}
+
+model CallLog {
+  id              String      @id @default(uuid())
+  tenantId        String      @map("tenant_id")
+  invoiceId       String      @map("invoice_id")
+  phoneNumber     String      @map("phone_number")
+  startedAt       DateTime    @map("started_at")
+  endedAt         DateTime?   @map("ended_at")
+  durationSeconds Int         @default(0) @map("duration_seconds")
+  outcome         CallOutcome @default(PENDING)
+  vapiCallId      String?     @map("vapi_call_id")
+  createdAt       DateTime    @default(now()) @map("created_at")
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, createdAt])
+  @@index([vapiCallId])
+  @@map("call_logs")
+}
+
+enum CallOutcome {
+  PENDING
+  ANSWERED
+  VOICEMAIL
+  NO_ANSWER
+  BUSY
+  WRONG_NUMBER
+  DISCONNECTED
+}
+
+model UsageRecord {
+  id               String   @id @default(uuid())
+  tenantId         String   @map("tenant_id")
+  periodStart      DateTime @map("period_start") @db.Date
+  periodEnd        DateTime @map("period_end") @db.Date
+  minutesAllocated Int      @default(100) @map("minutes_allocated")
+  minutesUsed      Decimal  @default(0) @map("minutes_used") @db.Decimal(10, 2)
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, periodStart])
+  @@index([tenantId])
+  @@map("usage_records")
+}
