@@ -22,6 +22,22 @@
 - `next.config.js` updated to move `serverActions` out of `experimental` block
 - Vercel cron jobs removed from active configuration
 - `mapVapiOutcome` function return type strengthened from `string` to union type
+- **GitHub OAuth removed** - Email/password authentication only for MVP
+
+## 2a. OAuth Removed (Intentional)
+
+- GitHub OAuth provider removed from NextAuth configuration
+- "Sign in with GitHub" button removed from login page
+- OAuth-related signIn callback logic removed
+- Rationale: Unnecessary complexity with no business value for MVP
+- Email/password authentication meets all current requirements
+
+### Future Consideration
+
+OAuth providers may be reconsidered after:
+- Custom domain is configured
+- Clear product requirements exist
+- User research indicates need
 
 ## 3. Cron Jobs (Intentionally Disabled)
 

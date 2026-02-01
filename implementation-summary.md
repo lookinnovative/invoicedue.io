@@ -68,10 +68,16 @@ All UI components follow the Calendly-style minimalist design specified in desig
 - Usage display on dashboard and settings pages
 - Visual progress bar with color-coded states
 
-### Security
+### Authentication
 
+- **Email/password authentication only** (via NextAuth CredentialsProvider)
+- GitHub OAuth intentionally disabled for MVP
 - Password hashing with bcrypt (12 rounds)
 - Session-based authentication via NextAuth with JWT strategy
+- 30-day session expiry
+
+### Security
+
 - Tenant ID enforcement on all database queries
 - VAPI webhook signature verification (HMAC-SHA256)
 - Cron job authorization via bearer token (when enabled)
@@ -311,6 +317,7 @@ npm audit fix --force
 
 The following items are explicitly excluded from the MVP per scope.md and mvp.md:
 
+- **OAuth authentication (GitHub, Google, etc.)** - Intentionally disabled; see rationale below
 - Subscription billing (Stripe integration)
 - Inbound calling
 - Integrations beyond CSV (QuickBooks, Xero, etc.)
@@ -322,6 +329,22 @@ The following items are explicitly excluded from the MVP per scope.md and mvp.md
 - Per-user pricing or role-based access
 - Custom caller ID provisioning
 - Real-time call status updates (polling-based reconciliation only)
+
+### OAuth Disabled (Rationale)
+
+GitHub OAuth was implemented and tested but has been **intentionally removed** from the MVP:
+
+1. **Unnecessary complexity** - OAuth introduces redirect_uri management, callback URL configuration, and cross-domain issues with no immediate business value
+2. **MVP focus** - Email/password authentication meets all MVP requirements
+3. **Deployment simplicity** - Removing OAuth eliminates environment variable dependencies on GITHUB_CLIENT_ID/GITHUB_CLIENT_SECRET
+4. **No customer request** - OAuth was not a requested feature for initial users
+
+### Future Consideration
+
+OAuth providers may be reconsidered after:
+- A custom domain is configured (e.g., app.invoicedue.io)
+- Clear product requirements define which providers are needed
+- User research indicates OAuth is a barrier to adoption
 
 ### Temporarily Deferred (Post-MVP)
 
