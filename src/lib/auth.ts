@@ -6,6 +6,7 @@ import { db } from './db';
 import { randomBytes } from 'crypto';
 
 export const authOptions: NextAuthOptions = {
+  trustHost: false,
   session: {
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60, // 30 days
