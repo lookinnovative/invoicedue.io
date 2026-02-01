@@ -1,7 +1,9 @@
 import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import { compare } from 'bcryptjs';
+import GitHubProvider from 'next-auth/providers/github';
+import { compare, hash } from 'bcryptjs';
 import { db } from './db';
+import { randomBytes } from 'crypto';
 
 export const authOptions: NextAuthOptions = {
   session: {
@@ -45,8 +47,46 @@ export const authOptions: NextAuthOptions = {
         };
       },
     }),
+    GitHubProvider({
+      clientId: process.env.GITHUB_CLIENT_ID!,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET!,
+    }),
   ],
   callbacks: {
+    async signIn({ user, account }) {
+      // For OAuth providers, ensure a Tenant record exists
+      if (account?.provider !== 'credentials' && user.email) {
+        try {
+          const existingTenant = await db.tenant.findUnique({
+            where: { email: user.email.toLowerCase() },
+          });
+
+          if (!existingTenant) {
+            // Create a new Tenant for OAuth user
+            const randomPassword = randomBytes(32).toString('hex');
+            const passwordHash = await hash(randomPassword, 12);
+            
+            const newTenant = await db.tenant.create({
+              data: {
+                email: user.email.toLowerCase(),
+                passwordHash,
+                companyName: user.name || user.email.split('@')[0],
+              },
+            });
+            
+            // Store tenant ID on user object for JWT callback
+            user.id = newTenant.id;
+          } else {
+            // Use existing tenant ID
+            user.id = existingTenant.id;
+          }
+        } catch (error) {
+          console.error('Failed to create/find tenant for OAuth user:', error);
+          return false; // Reject sign-in if tenant creation fails
+        }
+      }
+      return true;
+    },
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
