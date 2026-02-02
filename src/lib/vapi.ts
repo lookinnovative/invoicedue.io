@@ -94,10 +94,10 @@ export async function initiateCall(
               },
             ],
           },
-        voice: {
-          provider: '11labs',
-          voiceId: 'rachel',
-        },
+          voice: {
+            provider: '11labs',
+            voiceId: 'rachel',
+          },
         },
         metadata: {
           tenantId: tenant.id,
