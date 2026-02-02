@@ -1,8 +1,31 @@
-import { db } from './db';
 import { getDaysOverdue, formatCurrency } from './utils';
 import type { Invoice, Policy, Tenant } from '@prisma/client';
 
 const VAPI_API_URL = 'https://api.vapi.ai';
+
+// Normalize phone number to E.164 format
+function normalizePhoneNumber(phone: string): string {
+  // Remove all non-digit characters except leading +
+  const cleaned = phone.replace(/[^\d+]/g, '');
+  
+  // If already has +, assume it's formatted
+  if (cleaned.startsWith('+')) {
+    return cleaned;
+  }
+  
+  // If it's a 10-digit US number, add +1
+  if (cleaned.length === 10) {
+    return `+1${cleaned}`;
+  }
+  
+  // If it's 11 digits starting with 1, add +
+  if (cleaned.length === 11 && cleaned.startsWith('1')) {
+    return `+${cleaned}`;
+  }
+  
+  // Default: add + prefix
+  return `+${cleaned}`;
+}
 
 interface VapiCallResponse {
   id: string;
@@ -33,8 +56,8 @@ export async function initiateCall(
   policy: Policy,
   tenant: Tenant
 ): Promise<string | null> {
-  const apiKey = process.env.VAPI_API_KEY;
-  const phoneNumberId = process.env.VAPI_PHONE_NUMBER_ID;
+  const apiKey = process.env.VAPI_API_KEY?.trim();
+  const phoneNumberId = process.env.VAPI_PHONE_NUMBER_ID?.trim();
 
   if (!apiKey || !phoneNumberId) {
     console.error('VAPI configuration missing');
@@ -55,7 +78,7 @@ export async function initiateCall(
       body: JSON.stringify({
         phoneNumberId,
         customer: {
-          number: invoice.phoneNumber,
+          number: normalizePhoneNumber(invoice.phoneNumber),
         },
         assistant: {
           firstMessage: greetingMessage,
@@ -71,10 +94,10 @@ export async function initiateCall(
               },
             ],
           },
-          voice: {
-            provider: 'elevenlabs',
-            voiceId: 'rachel',
-          },
+        voice: {
+          provider: '11labs',
+          voiceId: 'rachel',
+        },
         },
         metadata: {
           tenantId: tenant.id,
