@@ -1,7 +1,7 @@
 import { getDaysOverdue, formatCurrency } from './utils';
 import type { Invoice, Policy, Tenant } from '@prisma/client';
 
-const VAPI_API_URL = 'https://api.vapi.ai';
+const VAPI_API_URL = 'https://api.vapi.ai'; // VAPI base URL
 
 // Normalize phone number to E.164 format
 function normalizePhoneNumber(phone: string): string {
