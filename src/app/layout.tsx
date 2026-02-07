@@ -1,11 +1,11 @@
 import type { Metadata } from 'next';
-import { Inter, Roboto_Slab } from 'next/font/google';
+import { Montserrat } from 'next/font/google';
 import './globals.css';
 
-const inter = Inter({ subsets: ['latin'] });
-const robotoSlab = Roboto_Slab({ 
+const montserrat = Montserrat({ 
   subsets: ['latin'],
-  variable: '--font-roboto-slab',
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-montserrat',
 });
 
 export const metadata: Metadata = {
@@ -23,7 +23,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${inter.className} ${robotoSlab.variable}`}>{children}</body>
+      <body className={`${montserrat.className} ${montserrat.variable}`}>{children}</body>
     </html>
   );
 }
