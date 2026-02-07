@@ -791,5 +791,137 @@ All inbound webhooks should be logged to `WebhookLog` for:
 
 ---
 
+## Section 12: Client Admin Dashboard
+
+**Customer-facing admin surface that mirrors internal admin concepts.**
+
+### 12.01 Overview
+
+The client admin dashboard provides InvoiceDue customers with visibility into their accounts receivable operations. It intentionally mirrors the structure and concepts of the internal admin, scoped to a single client.
+
+**Core Principle**: Clients should feel like they are seeing "the same dashboard we use — scoped to their company."
+
+### 12.02 Route Structure
+
+```
+/client                     → Overview (key metrics, recent activity)
+/client/invoices            → Client's invoices with status tracking
+/client/payments            → Payment history from Stripe webhooks
+/client/calls               → Call log with outcomes
+/client/events              → Activity timeline (human-readable)
+/client/system-health       → Success rates and system status
+/client/errors              → Issues that need attention
+/client/settings            → Read-only view of account config
+```
+
+### 12.03 Authorization Model
+
+| Route | Access Rule |
+|-------|-------------|
+| `/internal/*` | Authenticated + `isAdmin = true` |
+| `/client/*` | Authenticated (any tenant, their own data only) |
+| `/dashboard/*` | Authenticated (any tenant) |
+
+A user with `isAdmin = true` can access both `/internal` and `/client`.
+
+### 12.04 Data Scoping (Critical)
+
+All queries in client admin MUST include `tenantId` filter. There is no cross-client access.
+
+### 12.05 Level of Detail
+
+**Client Admin Shows:**
+- Status badges (Pending, Paid, Failed)
+- Counts and totals
+- Success rates (percentages)
+- Dates and timestamps
+- Human-readable activity descriptions
+- Masked phone numbers (last 4 digits only)
+
+**Client Admin Does NOT Show:**
+- Raw JSON payloads
+- Stack traces
+- Webhook signatures
+- Vendor retry internals
+- Debug-level metadata
+- Other clients' data
+
+### 12.06 Documentation
+
+Full client admin documentation: `/docs/client-admin.md`
+
+---
+
+## Section 13: Future Steps (Pre-Production)
+
+**Planned changes required before production launch.**
+
+### 13.01 Separate Internal Admin Identity
+
+**Status**: Documented — NOT YET IMPLEMENTED
+
+**Priority**: Required before production launch
+
+**Reason for Deferral**: Intentionally delayed until core functionality is stable
+
+#### Planned Change
+
+Create a separate internal-only email identity for founder/ops access:
+
+| Email | Purpose | Access |
+|-------|---------|--------|
+| `anthony@invoicedue.io` | Internal admin identity | `/internal/*` only |
+| `anthony.robinson@robbgroupe.com` | Client-facing user account | `/client/*`, `/dashboard/*` |
+
+#### Requirements
+
+1. **Create new email address**
+   - `anthony@invoicedue.io` (or equivalent internal domain)
+   - This email is used exclusively for internal admin access
+
+2. **Register as separate user**
+   - Create account with `anthony@invoicedue.io`
+   - Set `isAdmin = true` for this account only
+   - Keep `anthony.robinson@robbgroupe.com` as a normal client account (`isAdmin = false`)
+
+3. **Ensure separation**
+   - Internal admin: `anthony@invoicedue.io` → `/internal/*`
+   - Client admin: `anthony.robinson@robbgroupe.com` → `/client/*`
+   - These are separate auth sessions with separate permissions
+
+4. **Update `isAdmin` flags**
+   - Remove `isAdmin = true` from `anthony.robinson@robbgroupe.com`
+   - Grant `isAdmin = true` only to `anthony@invoicedue.io`
+
+#### What NOT to Do
+
+- Do NOT share internal admin access with client accounts in production
+- Do NOT rely on a single email address for both surfaces
+- Do NOT allow client accounts to access `/internal/*` routes
+
+#### Implementation Steps (When Ready)
+
+```bash
+# 1. Create internal admin account via signup or script
+# 2. Grant admin access
+npx tsx scripts/grant-admin.ts  # Update script with anthony@invoicedue.io
+
+# 3. Revoke admin from client account
+# (Update scripts/grant-admin.ts or run SQL)
+UPDATE tenants SET is_admin = false WHERE email = 'anthony.robinson@robbgroupe.com';
+
+# 4. Test both surfaces with correct accounts
+```
+
+#### Verification Checklist
+
+- [ ] `anthony@invoicedue.io` can access `/internal/*`
+- [ ] `anthony@invoicedue.io` cannot access client-specific data (no tenant invoices)
+- [ ] `anthony.robinson@robbgroupe.com` can access `/client/*` with ROBB Groupe data
+- [ ] `anthony.robinson@robbgroupe.com` cannot access `/internal/*`
+- [ ] Both accounts have separate sessions
+
+---
+
 *Document created: January 2026*
 *Last updated: February 2026*
