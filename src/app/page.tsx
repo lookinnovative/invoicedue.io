@@ -1,5 +1,8 @@
 import Link from 'next/link';
 
+// Slab serif font class
+const slabFont = 'font-[var(--font-roboto-slab)]';
+
 // Pricing card component
 function PricingCard({
   name,
@@ -32,17 +35,17 @@ function PricingCard({
         </div>
       )}
       <div className="flex-1">
-        <h3 className="text-xl font-bold text-slate-900" style={{ fontFamily: 'Georgia, serif' }}>
+        <h3 className={`text-xl font-bold text-slate-900 ${slabFont}`}>
           {name}
         </h3>
         <div className="mt-4">
           {isContact ? (
-            <span className="text-3xl font-bold text-slate-900" style={{ fontFamily: 'Georgia, serif' }}>
+            <span className={`text-3xl font-bold text-slate-900 ${slabFont}`}>
               Contact us
             </span>
           ) : (
             <>
-              <span className="text-4xl font-bold text-slate-900" style={{ fontFamily: 'Georgia, serif' }}>
+              <span className={`text-4xl font-bold text-slate-900 ${slabFont}`}>
                 {price}
               </span>
               <span className="text-slate-500 text-sm"> / month</span>
@@ -63,18 +66,14 @@ function PricingCard({
         {isContact ? (
           <Link
             href="mailto:sales@invoicedue.io"
-            className="block w-full text-center py-3.5 px-6 rounded-lg border-2 border-slate-300 text-slate-700 font-bold hover:border-slate-400 hover:bg-slate-50 transition-colors"
+            className="block w-full text-center py-3.5 px-6 rounded-lg border-2 border-primary text-primary font-bold hover:bg-primary/5 transition-colors"
           >
             Get in touch
           </Link>
         ) : (
           <Link
             href="/signup"
-            className={`block w-full text-center py-3.5 px-6 rounded-lg font-bold transition-colors ${
-              popular
-                ? 'bg-primary text-white hover:bg-primary/90'
-                : 'bg-slate-900 text-white hover:bg-slate-800'
-            }`}
+            className="block w-full text-center py-3.5 px-6 rounded-lg font-bold transition-colors bg-primary text-white hover:bg-primary/90"
           >
             Start free trial
           </Link>
@@ -90,7 +89,7 @@ export default function LandingPage() {
       {/* Navigation */}
       <nav className="border-b border-slate-100">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link href="/" className="text-xl font-bold text-slate-900" style={{ fontFamily: 'Georgia, serif' }}>
+          <Link href="/" className={`text-xl font-bold text-slate-900 ${slabFont}`}>
             InvoiceDue
           </Link>
           <div className="flex items-center gap-6">
@@ -102,7 +101,7 @@ export default function LandingPage() {
             </Link>
             <Link
               href="/signup"
-              className="text-sm bg-slate-900 text-white px-5 py-2.5 rounded-lg font-bold hover:bg-slate-800 transition-colors"
+              className="text-sm bg-primary text-white px-5 py-2.5 rounded-lg font-bold hover:bg-primary/90 transition-colors"
             >
               Start free trial
             </Link>
@@ -114,8 +113,7 @@ export default function LandingPage() {
       <section className="py-16 px-6">
         <div className="max-w-4xl mx-auto text-center">
           <h1
-            className="text-5xl md:text-6xl font-bold text-slate-900 leading-[1.1] tracking-tight"
-            style={{ fontFamily: 'Georgia, serif' }}
+            className={`text-5xl md:text-6xl font-bold text-slate-900 leading-[1.1] tracking-tight ${slabFont}`}
           >
             Get paid faster without chasing invoices
           </h1>
@@ -137,8 +135,7 @@ export default function LandingPage() {
           {/* Social Proof - Single Avatar Validation */}
           <div className="mt-14 flex justify-center">
             <div className="bg-slate-50 rounded-xl px-6 py-5 flex items-center gap-4 max-w-md">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-slate-600 to-slate-800 flex items-center justify-center text-white font-medium text-lg flex-shrink-0 overflow-hidden">
-                {/* Placeholder for real avatar - using initials */}
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-white font-medium text-lg flex-shrink-0 overflow-hidden">
                 <span>SR</span>
               </div>
               <div className="text-left">
@@ -158,8 +155,7 @@ export default function LandingPage() {
       <section className="py-14 px-6 bg-slate-50/70">
         <div className="max-w-5xl mx-auto">
           <h2
-            className="text-3xl font-bold text-slate-900 text-center mb-10"
-            style={{ fontFamily: 'Georgia, serif' }}
+            className={`text-3xl font-bold text-slate-900 text-center mb-10 ${slabFont}`}
           >
             Is InvoiceDue right for you?
           </h2>
@@ -167,8 +163,7 @@ export default function LandingPage() {
             {/* Who it's for */}
             <div className="bg-white rounded-xl border border-slate-200 p-6">
               <h3
-                className="text-lg font-bold text-slate-900 flex items-center gap-2"
-                style={{ fontFamily: 'Georgia, serif' }}
+                className={`text-lg font-bold text-slate-900 flex items-center gap-2 ${slabFont}`}
               >
                 <span className="text-green-600">✓</span> Built for
               </h3>
@@ -194,8 +189,7 @@ export default function LandingPage() {
             {/* Who it's not for */}
             <div className="bg-white rounded-xl border border-slate-200 p-6">
               <h3
-                className="text-lg font-bold text-slate-900 flex items-center gap-2"
-                style={{ fontFamily: 'Georgia, serif' }}
+                className={`text-lg font-bold text-slate-900 flex items-center gap-2 ${slabFont}`}
               >
                 <span className="text-slate-400">✗</span> Not designed for
               </h3>
@@ -226,8 +220,7 @@ export default function LandingPage() {
       <section className="py-14 px-6">
         <div className="max-w-5xl mx-auto">
           <h2
-            className="text-3xl font-bold text-slate-900 text-center mb-3"
-            style={{ fontFamily: 'Georgia, serif' }}
+            className={`text-3xl font-bold text-slate-900 text-center mb-3 ${slabFont}`}
           >
             Simple, predictable pricing
           </h2>
@@ -282,52 +275,51 @@ export default function LandingPage() {
       </section>
 
       {/* Final CTA */}
-      <section className="py-14 px-6 bg-slate-900">
+      <section className="py-14 px-6 bg-primary">
         <div className="max-w-3xl mx-auto text-center">
           <h2
-            className="text-3xl font-bold text-white"
-            style={{ fontFamily: 'Georgia, serif' }}
+            className={`text-3xl font-bold text-white ${slabFont}`}
           >
             Ready to get paid faster?
           </h2>
-          <p className="mt-4 text-slate-400">
+          <p className="mt-4 text-primary-foreground/80">
             Join finance teams who are reducing overdue invoices without the
             manual work.
           </p>
           <div className="mt-8">
             <Link
               href="/signup"
-              className="inline-block bg-white text-slate-900 text-lg font-bold px-10 py-4 rounded-lg hover:bg-slate-100 transition-colors"
+              className="inline-block bg-white text-primary text-lg font-bold px-10 py-4 rounded-lg hover:bg-slate-100 transition-colors"
             >
               Start free trial
             </Link>
-            <p className="mt-4 text-sm text-slate-500">No credit card required</p>
+            <p className="mt-4 text-sm text-primary-foreground/70">No credit card required</p>
           </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-slate-100 py-8 px-6 bg-white">
+      <footer className="py-8 px-6 bg-primary">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="text-sm text-slate-500">
+          <div className="text-sm text-primary-foreground/80">
             © {new Date().getFullYear()} InvoiceDue. All rights reserved.
           </div>
           <div className="flex items-center gap-8 text-sm">
             <Link
               href="/login"
-              className="text-slate-500 hover:text-slate-900 transition-colors"
+              className="text-primary-foreground/80 hover:text-white transition-colors"
             >
               Sign in
             </Link>
             <Link
               href="/signup"
-              className="text-slate-500 hover:text-slate-900 transition-colors"
+              className="text-primary-foreground/80 hover:text-white transition-colors"
             >
               Sign up
             </Link>
             <a
               href="mailto:support@invoicedue.io"
-              className="text-slate-500 hover:text-slate-900 transition-colors"
+              className="text-primary-foreground/80 hover:text-white transition-colors"
             >
               Contact
             </a>
