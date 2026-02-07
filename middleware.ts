@@ -10,8 +10,11 @@ const protectedRoutes = [
   '/settings',
 ];
 
-// Internal admin routes - require authentication (admin check happens in layout)
+// Internal admin routes - require authentication + isAdmin (admin check happens in layout)
 const internalRoutes = ['/internal'];
+
+// Client admin routes - require authentication (any authenticated tenant)
+const clientAdminRoutes = ['/client'];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -26,8 +29,13 @@ export function middleware(request: NextRequest) {
     (route) => pathname === route || pathname.startsWith(`${route}/`)
   );
 
-  // If not a protected or internal route, allow through
-  if (!isProtectedRoute && !isInternalRoute) {
+  // Check if this is a client admin route
+  const isClientAdminRoute = clientAdminRoutes.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`)
+  );
+
+  // If not a protected, internal, or client admin route, allow through
+  if (!isProtectedRoute && !isInternalRoute && !isClientAdminRoute) {
     return NextResponse.next();
   }
 
@@ -55,5 +63,6 @@ export const config = {
     '/history/:path*',
     '/settings/:path*',
     '/internal/:path*',
+    '/client/:path*',
   ],
 };
