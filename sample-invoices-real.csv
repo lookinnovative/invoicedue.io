@@ -1,0 +1,6 @@
+customer_name,phone_number,email,amount,due_date,invoice_number,description
+Kappa Ventures,+12125559999,kappa@example.com,2750.00,2025-12-09,INV-001,software development services
+Iota Partners,+13109876543,iota@example.com,8900.00,2025-12-14,INV-002,quarterly retainer fee
+Theta Group,+14158765432,theta@example.com,1200.00,2025-12-19,INV-003,website maintenance
+Eta Holdings,+17187654321,eta@example.com,5600.00,2025-12-27,INV-004,consulting engagement
+Zeta Corp,+12026543210,zeta@example.com,3400.00,2026-01-02,INV-005,project management services

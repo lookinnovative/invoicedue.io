@@ -56,6 +56,7 @@ interface Invoice {
   amount: string;
   dueDate: string;
   invoiceNumber: string | null;
+  description: string | null;
   email: string | null;
   notes: string | null;
   status: string;
@@ -70,6 +71,7 @@ interface CSVMapping {
   amount: string;
   dueDate: string;
   invoiceNumber: string;
+  description: string;
 }
 
 export default function InvoicesPage() {
@@ -87,6 +89,7 @@ export default function InvoicesPage() {
     amount: '',
     dueDate: '',
     invoiceNumber: '',
+    description: '',
   });
   const [isUploading, setIsUploading] = useState(false);
   const [uploadStep, setUploadStep] = useState<'select' | 'map'>('select');
@@ -147,6 +150,7 @@ export default function InvoicesPage() {
         amount: '',
         dueDate: '',
         invoiceNumber: '',
+        description: '',
       };
 
       headers.forEach((header) => {
@@ -161,6 +165,8 @@ export default function InvoicesPage() {
           autoMapping.dueDate = header;
         } else if (lower.includes('invoice') || lower.includes('number') || lower.includes('ref')) {
           autoMapping.invoiceNumber = header;
+        } else if (lower.includes('description') || lower.includes('desc') || lower.includes('service') || lower.includes('item')) {
+          autoMapping.description = header;
         }
       });
 
@@ -412,6 +418,12 @@ export default function InvoicesPage() {
                             <p className="font-medium">{selectedInvoice.invoiceNumber}</p>
                           </div>
                         )}
+                        {selectedInvoice.description && (
+                          <div>
+                            <p className="text-sm text-muted-foreground">Description</p>
+                            <p className="font-medium">{selectedInvoice.description}</p>
+                          </div>
+                        )}
                         <div>
                           <p className="text-sm text-muted-foreground">Status</p>
                           <Badge variant={getStatusBadgeVariant(selectedInvoice.status)}>
@@ -574,6 +586,24 @@ export default function InvoicesPage() {
                     <Select
                       value={mapping.invoiceNumber}
                       onValueChange={(v) => setMapping({ ...mapping, invoiceNumber: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select column (optional)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {csvHeaders.map((h) => (
+                          <SelectItem key={h} value={h}>
+                            {h}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Description</Label>
+                    <Select
+                      value={mapping.description}
+                      onValueChange={(v) => setMapping({ ...mapping, description: v })}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select column (optional)" />

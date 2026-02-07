@@ -64,46 +64,124 @@ export async function initiateCall(
     return null;
   }
 
-  const context: CallContext = { invoice, policy, tenant };
-  const greetingMessage = interpolateScript(policy.greetingScript, context);
-  const voicemailMessage = interpolateScript(policy.voicemailScript, context);
+  // Extract first name from customer name
+  const firstName = invoice.customerName.split(' ')[0];
+  const amount = formatCurrency(invoice.amount.toString());
+  const invoiceNumber = invoice.invoiceNumber || 'N/A';
+  const description = invoice.description || '';
+  const paymentLink = policy.paymentLink || '';
+
+  // Conversational dialog system prompt
+  const systemPrompt = `You are Alex, a warm and professional accounts receivable assistant calling on behalf of ${tenant.companyName}.
+
+CURRENT CALL CONTEXT:
+- Customer: ${invoice.customerName}
+- First Name: ${firstName}
+- Invoice Number: ${invoiceNumber}
+- Amount Due: ${amount}
+- Description: ${description || 'services rendered'}
+- Company: ${tenant.companyName}
+- Payment Link: ${paymentLink}
+
+YOUR PERSONA:
+- Name: Alex
+- Tone: Warm, calm, professional, genuinely helpful (not salesy, not robotic, not pushy)
+- Style: Conversational, friendly, uses the customer's first name occasionally
+- Pacing: Speak slowly and clearly. Pause briefly between sentences. Allow the customer time to respond.
+
+CONVERSATION FLOW:
+
+1. OPENING (already delivered as first message)
+You asked: "Hi, this is Alex calling on behalf of ${tenant.companyName}. I hope I'm catching you at a good time. Am I speaking with ${firstName}?"
+
+2. IF THEY CONFIRM IDENTITY ("yes", "speaking", "this is them", etc.):
+Say: "Thanks, ${firstName}. I'm reaching out about invoice ${invoiceNumber} — that's the ${description || 'services rendered'} for ${amount}. It looks like it's still open on our end, and I just wanted to touch base with you about it. Would it be helpful if I sent you a secure payment link? That way you can take care of it whenever's convenient for you."
+
+3. RESPONSE HANDLING:
+
+A) If they want the payment link ("yes send it", "text me", "email me", "sure", etc.):
+Say: "Absolutely, I'll get that over to you right away. You should see it come through shortly. Really appreciate you taking the time to chat, ${firstName}. Have a great rest of your day."
+Then end the call.
+
+B) If they can't pay today ("not right now", "I need time", "can't today", "next week", etc.):
+Say: "No problem at all, I completely understand. Just so I can make a note — when do you think works best for you to take care of it?"
+After they give a date, say: "Perfect, I've got that noted. I'll go ahead and send the payment link now so you have it ready when you need it. Thanks so much, ${firstName}. Have a great day."
+Then end the call.
+
+C) If they already paid or have a question ("I already paid", "there's an issue", "I have a question", "need to check", etc.):
+Say: "Oh, I appreciate you letting me know. I'll make sure to note that on our end. If there's anything that needs to be sorted out, someone from our team will be in touch. Thanks again, ${firstName}. Have a great day."
+Then end the call.
+
+D) If wrong person ("no", "wrong number", "they're not here", "who?", etc.):
+Say: "Oh, my apologies for the mix-up. Thanks for letting me know. Have a great day."
+Then end the call.
+
+E) If they seem confused or need clarification:
+Say: "No worries — I'm just calling from ${tenant.companyName} about an open invoice. Would it help if I sent the details to you by text or email?"
+Then proceed based on their response.
+
+CONVERSATION STYLE GUIDELINES:
+- Use transition phrases naturally: "No problem", "Absolutely", "I understand", "No worries"
+- Acknowledge what they say before responding
+- Use their first name once or twice, but not every sentence
+- Position payment as "taking care of it" rather than "paying"
+- Keep a helpful, collaborative tone throughout
+- If the conversation goes off-script, gently guide back to offering the payment link
+
+STRICT RULES:
+- Never take card details or process payment on the call
+- Never negotiate payment plans or split payments
+- Never discuss disputes in detail — offer to have someone follow up
+- Never pretend to be human staff (you are Alex, an assistant)
+- Always end warmly with "Have a great day" or similar
+- If unsure how to proceed, offer to send the payment link and end gracefully`;
+
+  // Voicemail script (neutral, no amount, compliant) - with natural pauses
+  const voicemailScript = `Hi, this is Alex calling on behalf of ${tenant.companyName}. I'm reaching out about an invoice that's still open on your account. When you get a chance, please give us a call back, or I can send you the details by text or email. Thanks so much, and have a great day.`;
+
+  // Opening message - warm and conversational
+  const firstMessage = `Hi, this is Alex calling on behalf of ${tenant.companyName}. I hope I'm catching you at a good time. Am I speaking with ${firstName}?`;
 
   try {
-    const response = await fetch(`${VAPI_API_URL}/call/phone`, {
+    const requestBody = {
+      phoneNumberId,
+      customer: {
+        number: normalizePhoneNumber(invoice.phoneNumber),
+      },
+      assistant: {
+        firstMessage: firstMessage,
+        voicemailMessage: voicemailScript,
+        endCallMessage: 'Thank you for your time, and have a great day.',
+        model: {
+          provider: 'openai',
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: systemPrompt,
+            },
+          ],
+        },
+        voice: {
+          provider: 'vapi',
+          voiceId: 'Elliot',
+        },
+      },
+      metadata: {
+        tenantId: tenant.id,
+        invoiceId: invoice.id,
+      },
+    };
+    
+    console.log('VAPI Request Body:', JSON.stringify(requestBody, null, 2));
+    
+    const response = await fetch(`${VAPI_API_URL}/call`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        phoneNumberId,
-        customer: {
-          number: normalizePhoneNumber(invoice.phoneNumber),
-        },
-        assistant: {
-          firstMessage: greetingMessage,
-          voicemailMessage: voicemailMessage,
-          endCallMessage: 'Thank you for your time. Goodbye.',
-          model: {
-            provider: 'openai',
-            model: 'gpt-4-turbo-preview',
-            messages: [
-              {
-                role: 'system',
-                content: `You are a professional accounts receivable representative for ${tenant.companyName}. You are calling about an overdue invoice. Be polite, professional, and brief. Do not negotiate payment terms. Simply remind the customer of the overdue amount and inform them a payment link will be sent via text message.`,
-              },
-            ],
-          },
-          voice: {
-            provider: '11labs',
-            voiceId: 'rachel',
-          },
-        },
-        metadata: {
-          tenantId: tenant.id,
-          invoiceId: invoice.id,
-        },
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
@@ -131,9 +209,30 @@ async function sendPaymentLinkSms(
   paymentLink: string,
   companyName: string
 ): Promise<void> {
-  // VAPI handles SMS through their platform
-  // This is a placeholder for the SMS integration
-  console.log(`SMS queued to ${phoneNumber}: Pay your invoice to ${companyName}: ${paymentLink}`);
+  const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  const fromNumber = process.env.TWILIO_PHONE_NUMBER;
+
+  if (!accountSid || !authToken || !fromNumber) {
+    console.log(`SMS skipped (Twilio not configured) to ${phoneNumber}`);
+    return;
+  }
+
+  try {
+    const twilio = require('twilio');
+    const client = twilio(accountSid, authToken);
+
+    const message = await client.messages.create({
+      body: `${companyName}: Pay your invoice securely here: ${paymentLink}`,
+      from: fromNumber,
+      to: normalizePhoneNumber(phoneNumber),
+    });
+
+    console.log(`SMS sent to ${phoneNumber}, SID: ${message.sid}`);
+  } catch (error) {
+    console.error(`Failed to send SMS to ${phoneNumber}:`, error);
+    // Don't throw - SMS failure shouldn't block the call flow
+  }
 }
 
 export function verifyVapiWebhook(

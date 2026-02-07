@@ -13,13 +13,17 @@ model Tenant {
   passwordHash String   @map("password_hash")
   companyName  String   @map("company_name")
   timezone     String   @default("America/New_York")
+  isAdmin      Boolean  @default(false) @map("is_admin")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  invoices     Invoice[]
-  policy       Policy?
-  callLogs     CallLog[]
-  usageRecords UsageRecord[]
+  invoices         Invoice[]
+  policy           Policy?
+  callLogs         CallLog[]
+  usageRecords     UsageRecord[]
+  events           Event[]
+  payments         Payment[]
+  paymentLinksSent PaymentLinkSent[]
 
   @@map("tenants")
 }
@@ -32,6 +36,7 @@ model Invoice {
   amount          Decimal       @db.Decimal(10, 2)
   dueDate         DateTime      @map("due_date") @db.Date
   invoiceNumber   String?       @map("invoice_number")
+  description     String?       @map("description")
   email           String?
   notes           String?
   status          InvoiceStatus @default(PENDING)
@@ -41,8 +46,10 @@ model Invoice {
   createdAt       DateTime      @default(now()) @map("created_at")
   updatedAt       DateTime      @updatedAt @map("updated_at")
 
-  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  callLogs CallLog[]
+  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  callLogs         CallLog[]
+  payments         Payment[]
+  paymentLinksSent PaymentLinkSent[]
 
   @@index([tenantId])
   @@index([tenantId, status])
@@ -123,4 +130,135 @@ model UsageRecord {
   @@unique([tenantId, periodStart])
   @@index([tenantId])
   @@map("usage_records")
+}
+
+// =============================================================================
+// INTERNAL ADMIN MODELS
+// =============================================================================
+
+// Append-only audit ledger for all system events
+model Event {
+  id         String      @id @default(uuid())
+  tenantId   String?     @map("tenant_id")
+  entityType EntityType  @map("entity_type")
+  entityId   String      @map("entity_id")
+  eventType  String      @map("event_type")
+  payload    Json        @default("{}")
+  source     EventSource @default(SYSTEM)
+  createdAt  DateTime    @default(now()) @map("created_at")
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt])
+  @@index([entityType, entityId])
+  @@index([eventType])
+  @@index([createdAt])
+  @@map("events")
+}
+
+enum EntityType {
+  CLIENT
+  INVOICE
+  CALL
+  PAYMENT
+  POLICY
+  SYSTEM
+}
+
+enum EventSource {
+  SYSTEM
+  USER
+  WEBHOOK
+}
+
+// Stripe payment tracking - ONLY updated by webhooks
+model Payment {
+  id                    String        @id @default(uuid())
+  tenantId              String        @map("tenant_id")
+  invoiceId             String        @map("invoice_id")
+  stripePaymentIntentId String?       @unique @map("stripe_payment_intent_id")
+  stripeCheckoutId      String?       @map("stripe_checkout_id")
+  status                PaymentStatus @default(PENDING)
+  amount                Decimal       @db.Decimal(10, 2)
+  currency              String        @default("usd")
+  paidAt                DateTime?     @map("paid_at")
+  failedAt              DateTime?     @map("failed_at")
+  failureReason         String?       @map("failure_reason")
+  createdAt             DateTime      @default(now()) @map("created_at")
+  updatedAt             DateTime      @updatedAt @map("updated_at")
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([invoiceId])
+  @@index([status])
+  @@map("payments")
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
+
+// Track when payment links are sent via SMS or email
+model PaymentLinkSent {
+  id               String              @id @default(uuid())
+  tenantId         String              @map("tenant_id")
+  invoiceId        String              @map("invoice_id")
+  channel          DeliveryChannel
+  recipientAddress String              @map("recipient_address")
+  paymentLink      String              @map("payment_link")
+  deliveryStatus   DeliveryStatus      @default(QUEUED) @map("delivery_status")
+  externalId       String?             @map("external_id")
+  sentAt           DateTime?           @map("sent_at")
+  deliveredAt      DateTime?           @map("delivered_at")
+  failedAt         DateTime?           @map("failed_at")
+  failureReason    String?             @map("failure_reason")
+  createdAt        DateTime            @default(now()) @map("created_at")
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@index([tenantId, createdAt])
+  @@map("payment_links_sent")
+}
+
+enum DeliveryChannel {
+  SMS
+  EMAIL
+}
+
+enum DeliveryStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  FAILED
+}
+
+// Log all inbound webhooks for debugging and replay
+model WebhookLog {
+  id              String         @id @default(uuid())
+  source          WebhookSource
+  eventType       String         @map("event_type")
+  externalId      String?        @map("external_id")
+  payload         Json
+  signature       String?
+  processedAt     DateTime?      @map("processed_at")
+  processingError String?        @map("processing_error")
+  createdAt       DateTime       @default(now()) @map("created_at")
+
+  @@index([source, createdAt])
+  @@index([eventType])
+  @@index([externalId])
+  @@map("webhook_logs")
+}
+
+enum WebhookSource {
+  VAPI
+  TWILIO
+  STRIPE
 }

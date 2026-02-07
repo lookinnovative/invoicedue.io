@@ -453,7 +453,8 @@ npx eslint src/app/api/invoices/route.ts
 | Issue | Description | Priority |
 |-------|-------------|----------|
 | Password reset emails | Endpoint exists but sends nothing | Medium |
-| VAPI SMS integration | Placeholder implementation | High |
+| **SMS A2P 10DLC Registration** | Twilio SMS implemented but blocked by carriers. Must register Brand + Campaign in Twilio Console → Messaging → A2P 10DLC. Takes 1-7 days. | **HIGH - BLOCKING** |
+| **Email with Payment Link** | Dialog offers to send payment link via email, but email sending not yet implemented. Need email service (SendGrid, Resend, etc.) | **HIGH** |
 | Timezone handling in cron | Runs in UTC, not tenant timezone | Medium |
 
 ### 8.03 Technical Debt
@@ -471,6 +472,37 @@ npx eslint src/app/api/invoices/route.ts
 | API documentation | No OpenAPI/Swagger spec | Low |
 | Deployment runbook | Basic steps only | Medium |
 | VAPI setup guide | Configuration steps needed | High |
+
+---
+
+## Section 8.5: SMS A2P 10DLC Registration (PENDING)
+
+**Status**: SMS code is complete and Twilio is configured. Messages are being blocked by US carriers due to A2P 10DLC compliance requirements.
+
+### Steps to Enable SMS
+
+1. **Go to Twilio Console** → Messaging → Regulatory Compliance → A2P 10DLC
+2. **Register Brand** (your business info - EIN, address, etc.)
+3. **Register Campaign** 
+   - Use case: "Account notifications" or "Payment reminders"
+   - Sample messages will be reviewed
+4. **Wait for Approval** (1-7 business days)
+5. **Assign Phone Number** to the approved campaign
+6. **Test SMS** - Should work after campaign approval
+
+### Alternative: Toll-Free Number
+
+If faster setup needed:
+1. Buy a Toll-Free number in Twilio
+2. Complete Toll-Free verification (usually 1-2 days)
+3. Update `TWILIO_PHONE_NUMBER` in Vercel with new number
+
+### Current State
+
+- Twilio SDK: Installed and configured
+- Code: Complete (`src/lib/vapi.ts` → `sendPaymentLinkSms`)
+- Environment Variables: Set in Vercel
+- Error: 30034 "Message from an Unregistered Number"
 
 ---
 
@@ -593,5 +625,171 @@ git push origin main
 
 ---
 
+## Section 10: Internal Admin Dashboard
+
+**Founder/ops-only observability layer (not customer-facing).**
+
+### 10.01 Overview
+
+The internal admin dashboard provides visibility into system state for debugging, observability, and operational monitoring. It is:
+
+- **Read-heavy** — Designed for inspection, not editing
+- **Founder-only** — Not exposed to customers
+- **Utilitarian** — Dense, information-first design
+- **Event-driven** — Append-only audit logs
+
+### 10.02 Route Separation
+
+| Surface | Route Prefix | Purpose |
+|---------|--------------|---------|
+| Customer UI | `/dashboard`, `/invoices`, `/policy`, `/history`, `/settings` | Self-service product |
+| Internal Admin | `/internal/*` | Founder observability |
+
+**Critical**: No internal admin code should be imported by customer-facing routes.
+
+### 10.03 Internal Admin Routes
+
+```
+/internal                    → Global Search (primary entry point)
+/internal/clients            → All clients list
+/internal/clients/[id]       → Client detail (invoices, calls, payments, events)
+/internal/invoices           → All invoices (cross-client)
+/internal/calls              → All calls (cross-client)
+/internal/payments           → All payments (cross-client)
+/internal/events             → Append-only event log
+/internal/system-health      → Observability dashboard
+```
+
+### 10.04 Folder Structure
+
+```
+/src/app/internal/
+├── layout.tsx               # Admin layout with nav and auth
+├── page.tsx                 # Global Search (home)
+├── clients/
+│   ├── page.tsx             # Clients list
+│   └── [id]/page.tsx        # Client detail
+├── invoices/page.tsx        # Invoices list
+├── calls/page.tsx           # Calls list
+├── payments/page.tsx        # Payments list
+├── events/page.tsx          # Events log
+└── system-health/page.tsx   # System health
+
+/src/lib/internal/
+├── search.ts                # Global search functions
+├── aggregations.ts          # Metrics and aggregations
+└── permissions.ts           # Admin access control
+```
+
+### 10.05 Terminology Change
+
+**Tenant → Client**
+
+The term "Tenant" is being renamed to "Client" for semantic clarity:
+- All new code uses "Client" terminology
+- Database table remains `tenant` for migration simplicity
+- UI displays "Client" not "Tenant"
+
+### 10.06 Source of Truth Hierarchy
+
+| Domain | Source of Truth | InvoiceDue Role |
+|--------|-----------------|-----------------|
+| Payments | Stripe | Read + display Stripe state via webhooks |
+| Calls | VAPI/Twilio | Read + display call outcomes via webhooks |
+| Invoices | InvoiceDue | Full ownership |
+| Clients | InvoiceDue | Full ownership |
+| Usage | InvoiceDue | Full ownership |
+
+### 10.07 Data Model Additions (Planned)
+
+| Entity | Purpose |
+|--------|---------|
+| `Event` | Append-only audit ledger (immutable) |
+| `Payment` | Stripe payment tracking (webhook-updated only) |
+| `PaymentLinkSent` | SMS/email delivery tracking |
+| `WebhookLog` | Inbound webhook debugging |
+
+### 10.08 v0 Guardrails (STRICT)
+
+These constraints apply to all internal admin development:
+
+1. **Read-only** — No edit, delete, or mutation buttons in v0
+2. **Inspect-only** — Observe and diagnose, not remediate
+3. **No retry buttons** — No manual call retry in v0
+4. **No replay buttons** — No webhook replay in v0
+5. **Stripe is truth** — Payment state only updated from Stripe webhooks, never UI
+6. **Single admin** — No role complexity in v0
+7. **Global Search first** — If only one page ships, it's Global Search
+
+### 10.09 What Is Out of Scope (v0)
+
+- Role-based access control
+- Bulk operations
+- Export functionality
+- Retry/remediation tools
+- Customer impersonation
+- Manual status overrides
+- Editing client/invoice data
+
+### 10.10 Documentation
+
+Full internal admin documentation:
+
+| Document | Path | Purpose |
+|----------|------|---------|
+| Overview | `/docs/internal-admin.md` | Page responsibilities and goals |
+| Data Model | `/docs/internal-admin-data-model.md` | Schema additions |
+| Events | `/docs/internal-admin-events.md` | Event-driven philosophy |
+
+---
+
+## Section 11: Observability Layer
+
+**Event logging, webhook processing, and payment tracking.**
+
+### 11.01 Event-Driven Philosophy
+
+1. **Write events first** — Before updating derived state
+2. **Events are immutable** — Never delete, never modify
+3. **Events are truth** — If state is wrong, events can reconstruct it
+4. **External systems are authoritative** — Stripe, VAPI, Twilio
+
+### 11.02 Key Event Types
+
+| Event Type | Trigger |
+|------------|---------|
+| `client.created` | User signup |
+| `invoice.created` | CSV upload |
+| `invoice.status_changed` | Status update |
+| `call.initiated` | VAPI call started |
+| `call.completed` | VAPI webhook received |
+| `payment_link.sent` | SMS/email sent |
+| `payment.received` | Stripe webhook |
+| `webhook.received` | Any inbound webhook |
+
+### 11.03 Payment State Rules
+
+**Critical**: Payment state is **only** written from Stripe webhooks.
+
+```
+✅ ALLOWED:
+- payment.received from payment_intent.succeeded webhook
+- payment.failed from payment_intent.payment_failed webhook
+
+❌ NOT ALLOWED:
+- Manual "mark as paid" button
+- Optimistic payment success assumption
+- UI-triggered payment status changes
+```
+
+### 11.04 Webhook Logging
+
+All inbound webhooks should be logged to `WebhookLog` for:
+- **Debugging** — See exactly what external systems sent
+- **Replay** — Reprocess webhooks if handler had bugs
+- **Audit** — Prove what data was received and when
+
+---
+
 *Document created: January 2026*
-*Last updated: January 2026*
+*Last updated: February 2026*

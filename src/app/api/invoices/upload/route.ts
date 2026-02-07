@@ -11,6 +11,7 @@ interface CSVMapping {
   amount: string;
   dueDate: string;
   invoiceNumber?: string;
+  description?: string;
   email?: string;
   notes?: string;
 }
@@ -78,6 +79,7 @@ export async function POST(request: NextRequest) {
           amount,
           dueDate,
           invoiceNumber: mapping.invoiceNumber ? record[mapping.invoiceNumber]?.trim() : null,
+          description: mapping.description ? record[mapping.description]?.trim() : null,
           email: mapping.email ? record[mapping.email]?.trim() : null,
           notes: mapping.notes ? record[mapping.notes]?.trim() : null,
         });

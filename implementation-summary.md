@@ -418,7 +418,118 @@ curl -H "Authorization: Bearer YOUR_CRON_SECRET" https://your-domain.vercel.app/
 |------|--------|
 | January 2026 | Initial implementation summary |
 | January 2026 | Added cron job deferral, security remediation plan, MVP scope guardrail |
+| February 2026 | VAPI integration completed and tested successfully |
 
 ---
 
-*Last updated: January 2026*
+## VAPI Integration Status (February 2026)
+
+### Completed & Verified
+
+- ✅ VAPI API endpoint corrected (`/call` instead of `/call/phone`)
+- ✅ Voice provider configuration fixed (`vapi` provider, `Elliot` voice)
+- ✅ Phone number normalization to E.164 format
+- ✅ Request body structure validated against VAPI API
+- ✅ Outbound calls successfully initiated
+- ✅ Call logging working correctly
+- ✅ Debug logging added for troubleshooting
+- ✅ Conversational Alex dialog implemented (interactive, not just a message)
+- ✅ Invoice description field added to data model and dialog
+
+### Configuration Requirements
+
+| Variable | Description |
+|----------|-------------|
+| `VAPI_API_KEY` | API key from VAPI dashboard |
+| `VAPI_PHONE_NUMBER_ID` | UUID of purchased/imported phone number |
+| `VAPI_WEBHOOK_SECRET` | For webhook signature verification |
+| `TWILIO_ACCOUNT_SID` | Twilio account SID (for SMS) |
+| `TWILIO_AUTH_TOKEN` | Twilio auth token (for SMS) |
+| `TWILIO_PHONE_NUMBER` | Twilio phone number in E.164 format |
+
+### Known Limitations
+
+- VAPI free tier has daily outbound call limits
+- 555-prefix phone numbers are rejected as invalid
+- For production use, import Twilio numbers for unlimited calls
+- SMS requires A2P 10DLC registration (see Section 8.5 in step-by-step-implementation.md)
+
+### Test Commands
+
+```bash
+# Manual trigger (production)
+curl -H "Authorization: Bearer YOUR_CRON_SECRET" https://invoicedue-io.vercel.app/api/cron/process-calls
+```
+
+---
+
+## Internal Admin Dashboard (Planned)
+
+### Overview
+
+An internal (founder/ops-only) admin dashboard is planned to provide observability and debugging capabilities across the entire system. This is **not customer-facing** and is designed to be dense, read-heavy, and utilitarian.
+
+### Route Structure
+
+```
+/internal                    → Global Search (primary entry point)
+/internal/clients            → All clients list
+/internal/clients/[id]       → Client detail
+/internal/invoices           → All invoices (cross-client)
+/internal/calls              → All calls (cross-client)
+/internal/payments           → All payments (cross-client)
+/internal/events             → Append-only event log
+/internal/system-health      → Observability dashboard
+```
+
+### Separation from Customer UI
+
+| Aspect | Customer UI | Internal Admin |
+|--------|-------------|----------------|
+| Route prefix | `/dashboard`, `/invoices`, etc. | `/internal/*` |
+| Access | Authenticated customers | Founder/ops only |
+| Purpose | Self-service | Observability |
+| Design | Polished, branded | Utilitarian, dense |
+| Editability | Full CRUD | Read-only (v0) |
+
+### Terminology Change
+
+**Tenant → Client**: The term "Tenant" is being renamed to "Client" for semantic clarity in all new code and documentation.
+
+### Data Model Additions (Planned)
+
+| Entity | Purpose |
+|--------|---------|
+| `Event` | Append-only audit ledger |
+| `Payment` | Stripe payment tracking |
+| `PaymentLinkSent` | Delivery tracking (SMS/email) |
+| `WebhookLog` | Inbound webhook debugging |
+
+### Source of Truth Hierarchy
+
+| Domain | Source of Truth |
+|--------|-----------------|
+| Payments | Stripe (webhooks only) |
+| Calls | VAPI/Twilio |
+| Invoices | InvoiceDue |
+| Clients | InvoiceDue |
+
+### v0 Constraints (Guardrails)
+
+- **Read-only** — No edit, delete, or mutation buttons
+- **Inspect-only** — Observe, diagnose, understand
+- **No remediation** — No retry, replay, or fix buttons
+- **Stripe is truth** — Payment state only from webhooks
+- **Single admin** — No role complexity
+- **Global Search first** — Primary entry point for all lookups
+
+### Documentation
+
+Full internal admin documentation is available at:
+- `/docs/internal-admin.md` — Overview and page responsibilities
+- `/docs/internal-admin-data-model.md` — Data model additions
+- `/docs/internal-admin-events.md` — Event-driven architecture
+
+---
+
+*Last updated: February 2026*

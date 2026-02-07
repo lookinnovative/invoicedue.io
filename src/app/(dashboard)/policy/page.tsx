@@ -37,9 +37,9 @@ const defaultPolicy: Policy = {
   callWindowEnd: '18:00',
   callDays: ['mon', 'tue', 'wed', 'thu', 'fri'],
   greetingScript:
-    'Hello, this is a call from {{company_name}} regarding invoice {{invoice_number}} for {{amount_due}}. This invoice is {{days_overdue}} days overdue. We will send you a payment link via text message.',
+    'Hi, this is Alex calling on behalf of {{company_name}}. I hope I\'m catching you at a good time. I\'m reaching out about invoice {{invoice_number}} — that\'s for {{amount_due}}. It looks like it\'s still open on our end, and I just wanted to touch base with you about it. Would it be helpful if I sent you a secure payment link?',
   voicemailScript:
-    'Hello {{customer_name}}, this is {{company_name}} calling about invoice {{invoice_number}} for {{amount_due}}. Please check your text messages for a payment link. Thank you.',
+    'Hi, this is Alex calling on behalf of {{company_name}}. I\'m reaching out about an invoice that\'s still open on your account. When you get a chance, please give us a call back, or I can send you the details by text or email. Thanks so much, and have a great day.',
   paymentLink: '',
   smsEnabled: true,
 };
@@ -272,10 +272,13 @@ export default function PolicyPage() {
         <Card>
           <CardHeader>
             <CardTitle>Call Scripts</CardTitle>
+            <CardDescription>
+              Alex, your AI assistant, uses these scripts as a guide and responds conversationally based on customer responses.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div>
-              <Label>Greeting (when someone answers)</Label>
+              <Label>Opening message (when someone answers)</Label>
               <Textarea
                 value={policy.greetingScript}
                 onChange={(e) => setPolicy({ ...policy, greetingScript: e.target.value })}

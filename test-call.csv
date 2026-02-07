@@ -1,0 +1,2 @@
+customer_name,phone_number,email,amount,due_date,invoice_number,description
+Test Call,+14048386995,test@example.com,100.00,2025-12-01,TEST-001,consulting services
