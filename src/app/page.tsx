@@ -164,8 +164,8 @@ export default function LandingPage() {
             />
             <StepCard
               number="2"
-              title="Manage accounts receivable"
-              description="InvoiceDue manages accounts receivable by placing friendly, consistent calls and sending payment links on your schedule — without manual effort."
+              title="Collect receivables"
+              description="InvoiceDue provides accounts receivable collection by placing friendly, consistent calls and sending payment links to your customers — without manual effort."
             />
             <StepCard
               number="3"
