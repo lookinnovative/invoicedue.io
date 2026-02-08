@@ -92,7 +92,7 @@ function StepCard({
 }) {
   return (
     <div className="bg-slate-50 rounded-xl p-6 flex flex-col h-full">
-      <div className="text-[42px] font-bold text-primary mb-4">{number}</div>
+      <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-white text-[20px] font-bold mb-4">{number}</div>
       <h3 className="text-[20px] font-bold text-slate-900 mb-3">{title}</h3>
       <p className="text-[17px] text-slate-600 font-medium leading-relaxed">{description}</p>
     </div>
@@ -147,15 +147,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Neutral Credibility Line */}
-      <section className="py-8 px-6">
-        <div className="max-w-4xl mx-auto text-center">
-          <p className="text-[18px] text-slate-500 font-medium">
-            Built to resolve outstanding invoices professionally and consistently.
-          </p>
-        </div>
-      </section>
-
       {/* How It Works */}
       <section className="py-16 px-6 bg-white">
         <div className="max-w-5xl mx-auto">
@@ -173,8 +164,8 @@ export default function LandingPage() {
             />
             <StepCard
               number="2"
-              title="We follow up professionally"
-              description="InvoiceDue handles outreach for you. Friendly, consistent calls and payment links — sent automatically, on your schedule."
+              title="Manage accounts receivable"
+              description="InvoiceDue manages accounts receivable by placing friendly, consistent calls and sending payment links on your schedule — without manual effort."
             />
             <StepCard
               number="3"
